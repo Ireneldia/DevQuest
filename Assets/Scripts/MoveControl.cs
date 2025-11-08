@@ -29,7 +29,8 @@ public class MoveControl : MonoBehaviour
     public bool moving = false;
     
     private float stateTime;
-    private Vector3 forward, right;
+    private int jumpCount = 0; // 점프 횟수 카운트
+    private int maxJumps = 2; // 최대 2번 점프
 
     private void Start()
     {
@@ -39,8 +40,6 @@ public class MoveControl : MonoBehaviour
         state = State.None;
         nextState = State.Idle;
         stateTime = 0f;
-        forward = transform.forward;
-        right = transform.right;
     }
 
     private void Update()
@@ -48,7 +47,6 @@ public class MoveControl : MonoBehaviour
         //0. 글로벌 상황 판단
         stateTime += Time.deltaTime;
         CheckLanded();
-        //insert code here...
 
         //1. 스테이트 전환 상황 판단
         if (nextState == State.None) 
@@ -58,8 +56,9 @@ public class MoveControl : MonoBehaviour
                 case State.Idle:
                     if (landed) 
                     {
-                        if (Input.GetKey(KeyCode.Space)) 
+                        if (Input.GetKey(KeyCode.Space))
                         {
+                            jumpCount = 1;
                             nextState = State.Jump;
                         }
                     }
@@ -67,10 +66,18 @@ public class MoveControl : MonoBehaviour
                 case State.Jump:
                     if (landed) 
                     {
+                        jumpCount = 0; // 착지하면 점프 카운트 리셋
                         nextState = State.Idle;
                     }
+                    // 공중에서 Space 누르면 이단 점프
+                    else if (Input.GetKeyDown(KeyCode.Space) && jumpCount < maxJumps)
+                    {
+                        jumpCount++;
+                        var vel = rigid.linearVelocity;
+                        vel.y = jumpAmount;
+                        rigid.linearVelocity = vel;
+                    }
                     break;
-                //insert code here...
             }
         }
         
@@ -86,13 +93,9 @@ public class MoveControl : MonoBehaviour
                     vel.y = jumpAmount;
                     rigid.linearVelocity = vel;
                     break;
-                //insert code here...
             }
             stateTime = 0f;
         }
-        
-        //3. 글로벌 & 스테이트 업데이트
-        //insert code here...
     }
 
     private void FixedUpdate()
@@ -110,6 +113,15 @@ public class MoveControl : MonoBehaviour
     
     private void UpdateInput()
     {
+        // 카메라 방향을 매 프레임 업데이트
+        Transform cameraTransform = GetComponentInChildren<Camera>().transform;
+        Vector3 forward = cameraTransform.forward;
+        Vector3 right = cameraTransform.right;
+        forward.y = 0; // Y축만 제외 (위아래 움직임 방지)
+        right.y = 0;
+        forward.Normalize();
+        right.Normalize();
+        
         var direction = Vector3.zero;
         
         if (Input.GetKey(KeyCode.W)) direction += forward; //Forward
@@ -117,8 +129,15 @@ public class MoveControl : MonoBehaviour
         if (Input.GetKey(KeyCode.S)) direction += -forward; //Back
         if (Input.GetKey(KeyCode.D)) direction += right; //Right
         
-        direction.Normalize(); //대각선 이동(Ex. W + A)시에도 동일한 이동속도를 위해 direction을 Normalize
+        direction.Normalize();
         
-        transform.Translate( moveSpeed * Time.deltaTime * direction); //Move
+        // 달리기 속도 조정
+        float currentSpeed = moveSpeed;
+        if (Input.GetKey(KeyCode.LeftShift) && Input.GetKey(KeyCode.W))
+        {
+            currentSpeed = moveSpeed * 2f; // Shift + W로 2배 속도
+        }
+        
+        transform.Translate(currentSpeed * Time.deltaTime * direction);
     }
 }
