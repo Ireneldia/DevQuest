@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 public class MoveControl : MonoBehaviour
 {
@@ -113,11 +112,22 @@ public class MoveControl : MonoBehaviour
     
     private void UpdateInput()
     {
-        // 카메라 방향을 매 프레임 업데이트
-        Transform cameraTransform = GetComponentInChildren<Camera>().transform;
-        Vector3 forward = cameraTransform.forward;
-        Vector3 right = cameraTransform.right;
-        forward.y = 0; // Y축만 제외 (위아래 움직임 방지)
+        // [문제]
+        // transform.Translate()는 Local 좌표계를 기준으로 움직이기 때문에
+        // Player가 회전하면 모든 각도에서 WASD가 일관되지 않음
+        // 예: 180도 회전 후 W를 누르면 뒤로 감
+        
+        // [원인]
+        // transform.forward/right가 Player 회전에 따라 변하는데,
+        // transform.Translate()가 이를 Local 좌표로 해석하면서 중복 적용됨
+        
+        // [해결]
+        // Rigidbody.velocity를 직접 설정하여 
+        // World 좌표계에서 절대적인 이동 방향을 적용
+        
+        Vector3 forward = transform.forward;
+        Vector3 right = transform.right;
+        forward.y = 0;
         right.y = 0;
         forward.Normalize();
         right.Normalize();
@@ -138,6 +148,15 @@ public class MoveControl : MonoBehaviour
             currentSpeed = moveSpeed * 2f; // Shift + W로 2배 속도
         }
         
-        transform.Translate(currentSpeed * Time.deltaTime * direction);
+        // ===== 변경 전 =====
+        // transform.Translate(currentSpeed * Time.deltaTime * direction);
+        
+        // ===== 변경 후 =====
+        // Rigidbody.velocity를 직접 설정 (Y축은 중력 유지)
+        rigid.linearVelocity = new Vector3(
+            direction.x * currentSpeed,
+            rigid.linearVelocity.y,
+            direction.z * currentSpeed
+        );
     }
 }

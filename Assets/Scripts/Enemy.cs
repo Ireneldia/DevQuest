@@ -14,18 +14,22 @@ public class Enemy : MonoBehaviour
     
     [Header("Settings")]
     [SerializeField] private float attackRange = 2f; // 공격 범위
-    [SerializeField] private float chaseRange = 10f; // 추적 범위 (새로 추가)
+    [SerializeField] private float chaseRange = 10f; // 추적 범위
     [SerializeField] private float patrolRange = 5f; // 순찰 범위
+    [SerializeField] private int maxHealth = 100; // 최대 체력 100
     
-    private NavMeshAgent navMeshAgent; // NavMeshAgent 추가
+    private NavMeshAgent navMeshAgent;
     private Vector3 patrolTarget;
+    private int currentHealth;
+    private bool isDead = false;
     
     public enum State 
     {
         None,
         Idle,
-        Chase, // 추적 상태 추가
-        Attack
+        Chase,
+        Attack,
+        Dead
     }
     
     [Header("Debug")]
@@ -40,6 +44,7 @@ public class Enemy : MonoBehaviour
         if (player == null)
             player = GameObject.FindGameObjectWithTag("Player")?.transform;
         
+        currentHealth = maxHealth;
         state = State.None;
         nextState = State.Idle;
         SetNewPatrolTarget();
@@ -47,6 +52,10 @@ public class Enemy : MonoBehaviour
 
     private void Update()
     {
+        // 죽었으면 아무것도 하지 않기
+        if (isDead)
+            return;
+
         //1. 스테이트 전환 상황 판단
         if (nextState == State.None) 
         {
@@ -106,6 +115,12 @@ public class Enemy : MonoBehaviour
                     animator.SetBool("isMoving", false);
                     Attack();
                     break;
+                case State.Dead:
+                    animator.SetBool("isMoving", false);
+                    animator.SetTrigger("death"); // death 트리거 발동!
+                    navMeshAgent.enabled = false;
+                    isDead = true;
+                    break;
             }
         }
         
@@ -145,6 +160,36 @@ public class Enemy : MonoBehaviour
     public void WhenAnimationDone()
     {
         attackDone = true;
+    }
+
+    // 데미지 받는 함수
+    public void TakeDamage(int damage)
+    {
+        if (isDead) return;
+
+        currentHealth -= damage;
+        Debug.Log($"Enemy took {damage} damage. Health: {currentHealth}/{maxHealth}");
+
+        // 데미지 받을 때 stun 애니메이션
+        animator.SetTrigger("stun");
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+    }
+
+    // 죽는 함수
+    private void Die()
+    {
+        if (isDead) return;
+
+        isDead = true;
+        
+        Debug.Log("Enemy died!");
+        
+        // 즉시 사라지기
+        Destroy(gameObject);
     }
 
     private void OnDrawGizmosSelected()

@@ -9,6 +9,7 @@ public class ShootingControl : MonoBehaviour
     
     [Header("Settings")]
     [SerializeField] private float rayDistance = 1000f;
+    [SerializeField] private int damagePerShot = 1;
     
     private int enemyLayerMask;
 
@@ -17,7 +18,6 @@ public class ShootingControl : MonoBehaviour
         if (mainCamera == null)
             mainCamera = GetComponentInChildren<Camera>();
         
-        // Enemy Layer만 감지하도록 설정
         enemyLayerMask = 1 << LayerMask.NameToLayer("Enemy");
     }
 
@@ -31,27 +31,17 @@ public class ShootingControl : MonoBehaviour
 
     private void Shoot()
     {
-        // 마우스 위치를 월드 좌표 Ray로 변환
         Ray screenRay = mainCamera.ScreenPointToRay(Input.mousePosition);
-        
         Ray ray = new Ray(mainCamera.transform.position, screenRay.direction);
         RaycastHit hit;
 
-        // Enemy Layer만 감지
         if (Physics.Raycast(ray, out hit, rayDistance, enemyLayerMask))
         {
             Enemy enemy = hit.collider.GetComponent<Enemy>();
             if (enemy != null)
             {
-                // Object Pool에 반환
-                if (EnemyPool.instance != null)
-                {
-                    EnemyPool.instance.ReturnEnemy(enemy.gameObject);
-                }
-                else
-                {
-                    Destroy(enemy.gameObject);
-                }
+                enemy.TakeDamage(damagePerShot);
+                Debug.Log("Hit enemy!");
             }
         }
     }
